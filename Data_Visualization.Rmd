@@ -1,0 +1,467 @@
+---
+title: "Data Visualization"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA}
+#libraries
+library(readxl)
+library(plotly)
+library(tidyr) # Reshape the data for easier plotting
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(GGally) #scatter plot matrix
+```
+
+
+
+
+```{r,echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
+file_path <- "data/average_swims.xlsx"
+metal_conc_data <- read_excel(file_path, sheet = 1)
+```
+
+
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
+summary(metal_conc_data[-1])
+
+```
+
+### Plots for variation of metal concentrations across each sample
+<br>
+
+```{r,echo=FALSE, fig.height=7, fig.width=12}
+
+plot_ly(metal_conc_data, x = ~Sample_No) %>%
+  # Add traces for each metal
+  add_trace(y = ~Be, type = 'scatter', mode = 'lines+markers', name = 'Be') %>%
+  add_trace(y = ~Cr, type = 'scatter', mode = 'lines+markers', name = 'Cr') %>%
+  add_trace(y = ~Mn, type = 'scatter', mode = 'lines+markers', name = 'Mn') %>%
+  add_trace(y = ~Fe, type = 'scatter', mode = 'lines+markers', name = 'Fe') %>%
+  add_trace(y = ~Ni, type = 'scatter', mode = 'lines+markers', name = 'Ni') %>%
+  add_trace(y = ~Cu, type = 'scatter', mode = 'lines+markers', name = 'Cu') %>%
+  add_trace(y = ~As, type = 'scatter', mode = 'lines+markers', name = 'As') %>%
+  add_trace(y = ~Se, type = 'scatter', mode = 'lines+markers', name = 'Se') %>%
+  add_trace(y = ~Cd, type = 'scatter', mode = 'lines+markers', name = 'Cd') %>%
+  add_trace(y = ~Sb, type = 'scatter', mode = 'lines+markers', name = 'Sb') %>%
+  add_trace(y = ~Ba, type = 'scatter', mode = 'lines+markers', name = 'Ba') %>%
+  add_trace(y = ~Tl, type = 'scatter', mode = 'lines+markers', name = 'Tl') %>%
+  add_trace(y = ~Pb, type = 'scatter', mode = 'lines+markers', name = 'Pb') %>%
+  add_trace(y = ~U, type = 'scatter', mode = 'lines+markers', name = 'U') %>%
+  
+  # Add dropdown to select the metal to display
+  layout(
+    title = 'Concentrations of Metals by Sample Number - (Dynamic plot)',
+    xaxis = list(title = 'Sample Number'),
+    yaxis = list(title = 'Concentration'),
+    
+    updatemenus = list(
+      list(
+        y = 0.8,
+        buttons = list(
+          # Add "All" button to display all metals
+          list(method = "restyle",
+               args = list("visible", rep(TRUE, 14)),
+               label = "All"),
+          list(method = "restyle",
+               args = list("visible", c(TRUE, rep(FALSE, 13))),
+               label = "Be"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, TRUE, rep(FALSE, 12))),
+               label = "Cr"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, TRUE, rep(FALSE, 11))),
+               label = "Mn"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, TRUE, rep(FALSE, 10))),
+               label = "Fe"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 9))),
+               label = "Ni"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 8))),
+               label = "Cu"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 7))),
+               label = "As"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 6))),
+               label = "Se"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 5))),
+               label = "Cd"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 4))),
+               label = "Sb"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, rep(FALSE, 3))),
+               label = "Ba"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE)),
+               label = "Tl"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE)),
+               label = "Pb"),
+          list(method = "restyle",
+               args = list("visible", c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE)),
+               label = "U")
+        )
+      )
+    )
+  )
+
+```
+
+
+<br>
+
+```{r, echo=FALSE, fig.height=8, fig.width=12, warning=FALSE, message=FALSE, comment=NA}
+
+
+# Convert the data from wide to long format for plotting
+metal_long <- metal_conc_data %>%
+  pivot_longer(cols = Be:U, names_to = "Metal", values_to = "Concentration")
+
+# Create a ggplot for the metals by Sample_No
+p <- ggplot(metal_long, aes(x = Sample_No, y = Concentration)) +
+  geom_line(aes(color = Metal), size = 1) +  # Line plot for concentration
+  geom_point(aes(color = Metal), size = 1.5) +  # Add points on the lines
+  facet_wrap(~ Metal, ncol = 4, nrow = 4, scales = "free_y") +  # Create grid with 4x4 layout
+  theme_minimal() +  # Minimal theme for clean visualization
+  labs(title = "Concentrations of Metals by Sample ",
+       x = "Sample Number", 
+       y = "Concentration") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),  # Center and size title
+    strip.text = element_text(size = 10)  # Adjust facet label size
+  )
+
+# Print the plot
+print(p)
+
+```
+
+<br>
+
+### Box Plots of Metals - Identification of outliers and extreme points
+
+<br>
+<br>
+
+```{r, echo=FALSE, fig.height=6, fig.width=10, warning=FALSE, message=FALSE, comment=NA}
+# Convert the data from wide to long format for plotting
+metal_long <- metal_conc_data %>%
+  pivot_longer(cols = Be:U, names_to = "Metal", values_to = "Concentration")
+
+# Create an interactive boxplot with a y-axis range slider
+plot_ly(metal_long, 
+        x = ~Metal, 
+        y = ~Concentration, 
+        type = 'box', 
+        boxpoints = 'outliers',  # Show outliers
+        jitter = 0.3,            # Add some jitter for visibility
+        pointpos = -1.8,         # Control the position of the outliers
+        text = ~paste("Sample No:", Sample_No)  # Show Sample No. when hovering
+) %>%
+  layout(
+    title = 'Concentrations of Metals Across Samples - (Dynamic plot)',
+    xaxis = list(title = ''),
+    yaxis = list(title = 'Concentration'),
+
+
+    # Add slider to control the y-axis range
+    sliders = list(
+      list(
+        active = 0,
+        currentvalue = list(prefix = "y-axis range: "),
+        steps = list(
+          list(label = "Full", method = "relayout", args = list("yaxis.autorange", TRUE)),
+          list(label = "0-1000", method = "relayout", args = list("yaxis.range", list(0, 1000))),
+          list(label = "0-500", method = "relayout", args = list("yaxis.range", list(0, 500))),
+          list(label = "0-100", method = "relayout", args = list("yaxis.range", list(0, 100))),   
+          list(label = "0-20", method = "relayout", args = list("yaxis.range", list(0, 20))),
+          list(label = "0-5", method = "relayout", args = list("yaxis.range", list(0, 5))),
+          list(label = "0-1", method = "relayout", args = list("yaxis.range", list(0, 1))),
+          list(label = "0-0.2", method = "relayout", args = list("yaxis.range", list(0, 0.2)))
+        )
+      )
+    )
+  )
+
+```
+
+
+<br>
+<br>
+
+### Larval Activity Traces
+
+<br>
+
+```{r,echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
+larvel_activity_data <- read_excel(file_path, sheet = 2)
+```
+
+<br>
+
+
+
+```{r, comment=NA,echo=FALSE,fig.width=8, fig.height=7,message=FALSE,warning=FALSE}
+# Define function to filter data based on selected sample
+filtered_data <- function(sample_num) {
+  larvel_activity_data %>%
+    filter(Sample == sample_num)
+}
+
+# Get unique sample numbers from the dataset
+sample_numbers <- sort(unique(larvel_activity_data$Sample))
+
+# Initialize plot with the first sample as default
+plot <- plot_ly()
+
+# Add traces for each fish in the first sample (default)
+plot <- plot %>%
+  add_lines(data = filtered_data(sample_numbers[1]),
+            x = ~Time,
+            y = ~AVG_Distance,
+            color = ~factor(Fish),
+            colors = "Set1",
+            text = ~paste("Fish:", Fish, "<br>Time:", Time, "<br>Distance:", AVG_Distance),
+            hoverinfo = 'text',
+            name = ~paste("Fish", Fish))
+
+# Add grey shaded areas for time intervals: 0-5, 10-15, 20-25
+shaded_areas <- list(
+  list(type = "rect",
+       fillcolor = "lightgrey", opacity = 0.3, line = list(width = 0),
+       x0 = 10, x1 = 15, xref = "x", y0 = 0, y1 = 1, yref = "paper"),
+  list(type = "rect",
+       fillcolor = "lightgrey", opacity = 0.3, line = list(width = 0),
+       x0 = 20, x1 = 25, xref = "x", y0 = 0, y1 = 1, yref = "paper")
+)
+
+# Define the layout with dropdown
+plot <- plot %>%
+  layout(
+    title = 'Larval Activity Over Time for each sample',
+    xaxis = list(title = 'Time (minutes)'),
+    yaxis = list(title = 'Average Distance Travelled'),
+    shapes = shaded_areas,  # Add shaded areas
+    updatemenus = list(
+      list(
+        type = 'dropdown',
+        active = 0,
+        buttons = lapply(sample_numbers, function(sample_num) {
+          # For each sample, we dynamically update the plot with a new set of traces for each fish
+          fish_data <- filtered_data(sample_num)
+          unique_fish <- unique(fish_data$Fish)
+          
+          # Generate the new traces for each unique fish in the selected sample
+          list(method = "restyle",  # Use 'restyle' to properly update the traces
+               args = list(
+                 # Update x and y data for each unique fish
+                 list(
+                   x = lapply(unique_fish, function(f) fish_data[fish_data$Fish == f,]$Time),
+                   y = lapply(unique_fish, function(f) fish_data[fish_data$Fish == f,]$AVG_Distance),
+                   text = lapply(unique_fish, function(f) paste("Fish:", f, "<br>Time:", fish_data[fish_data$Fish == f,]$Time, "<br>Distance:", fish_data[fish_data$Fish == f,]$AVG_Distance)),
+                   # Update the name for each trace to update the legend
+                   name = lapply(unique_fish, function(f) paste("Fish", f)),
+                   hoverinfo = 'text'
+                 )
+               ),
+               label = paste("Sample", sample_num))
+        })
+      )
+    )
+  )
+
+# Display the plot
+plot
+
+```
+
+
+<br>
+
+* Substract __AVG_Distance__ by __AVG_Distance_Control__ to obtain the distances travelled by the larvae in the control sample, name this new variable as __Control_Distance__.
+
+
+```{r, comment=NA,echo=FALSE,fig.width=8, fig.height=7,message=FALSE,warning=FALSE}
+summary(larvel_activity_data[-c(1:5)])
+```
+
+<br>
+
+Variables in the newly created data set:
+
+* The mean distance traveled by the larvae in each time interval for every sample - __mean_D__
+* The mean distance traveled by larvae in each time interval relative to the control - __mean_DC__
+* The mean distance traveled in each time interval for the control sample - __mean_C__  
+
+
+```{r, comment=NA,echo=FALSE,fig.width=8, fig.height=7,message=FALSE,warning=FALSE}
+
+# Summarize the data by Sample and Time, and add Dark/Light column
+summary_data <- larvel_activity_data %>%
+  group_by(Sample, Time) %>%
+  summarise(
+    mean_D = mean(AVG_Distance, na.rm = TRUE),
+    mean_DC = mean(AVG_Distance_Control, na.rm = TRUE),
+    mean_C = mean(Control_Distance, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    `Dark/Light` = case_when(
+      Time %in% c(5, 15, 25) ~ "D",
+      Time %in% c(10, 20) ~ "L",
+      TRUE ~ NA_character_  # Optional: Handle unexpected values
+    )
+  )
+
+summary_data <- summary_data %>%
+  select(1:2, last_col(), everything())
+
+# Display the summarized data with Dark/Light column
+head(summary_data,10)
+
+```
+
+
+```{r, comment=NA,echo=FALSE,fig.width=15, fig.height=9,message=FALSE,warning=FALSE}
+p <- ggplot(summary_data, aes(x = Time, y = mean_D)) +
+  geom_line(aes(color = Sample), size = 1) +  # Line plot for concentration
+  geom_point(aes(color = Sample), size = 1.5) +  # Add points on the lines
+  facet_wrap(~ Sample, ncol = 12, nrow = 10, scales = "free_y") +  # Create grid with 4x4 layout
+  theme_minimal() +  # Minimal theme for clean visualization
+  labs(title = "Mean Distance Travelled in each time interval by Sample Number - (Static plot)",
+       x = "Sample Number", 
+       y = "Mean Distance") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),  # Center and size title
+    strip.text = element_text(size = 10)  # Adjust facet label size
+  )
+
+# Print the plot
+print(p)
+
+```
+
+
+```{r, comment=NA,echo=FALSE,fig.width=15, fig.height=9,message=FALSE,warning=FALSE}
+p <- ggplot(summary_data, aes(x = Time, y = mean_DC)) +
+  geom_line(aes(color = Sample), size = 1) +  # Line plot for concentration
+  geom_point(aes(color = Sample), size = 1.5) +  # Add points on the lines
+  facet_wrap(~ Sample, ncol = 12, nrow = 10, scales = "free_y") +  # Create grid with 4x4 layout
+  theme_minimal() +  # Minimal theme for clean visualization
+  labs(title = "Mean Distance Travelled relative to the Control in each time interval by Sample Number - (Static plot)",
+       x = "Sample Number", 
+       y = "Normalized Mean Distance") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),  # Center and size title
+    strip.text = element_text(size = 10)  # Adjust facet label size
+  )
+
+# Print the plot
+print(p)
+
+```
+
+<br>
+<br>
+
+
+```{r, comment=NA,echo=FALSE,fig.width=8, fig.height=7,message=FALSE,warning=FALSE}
+
+#Rename
+colnames(larvel_activity_data)[colnames(larvel_activity_data) == "Sample"] <- "Sample_No"
+
+# Summarize the larvel_activity_data to calculate ABO for each Sample_No
+ABO_values <- larvel_activity_data %>%
+  group_by(Sample_No) %>%
+  summarise(
+    ABO = sum(AVG_Distance_Control, na.rm = TRUE) / 24
+  ) %>%
+  ungroup()
+
+# Join the calculated ABO values to metal_conc_data based on Sample_No
+metal_conc_data <- metal_conc_data %>%
+  left_join(ABO_values, by = "Sample_No")
+
+```
+
+### Correlation matrix of concentration data and aggregate behavioral distance  travelled
+
+Created the "aggregate behavioral outcome" (ABO) variable in the metal_conc_data data set to produce the correlation matrix:
+
+```{r, comment=NA,echo=FALSE,fig.width=15, fig.height=9,message=FALSE,warning=FALSE}
+
+#summary_data <- summary_data %>% 
+#                  group_by(Sample) %>%
+#                  summarise(
+#                    TMD = sum(mean_D, na.rm = TRUE),
+#                    sum_mean_DC = sum(mean_DC, na.rm = TRUE),
+#                    sum_mean_C = sum(mean_C, na.rm = TRUE)
+#                  )
+
+#summary_data <- summary_data %>%
+#  rename(Sample_No = Sample)
+
+#metal_conc_data <- metal_conc_data %>%
+#  left_join(summary_data, by = "Sample_No")
+
+```
+
+
+
+```{r, comment=NA,echo=FALSE,fig.width=9, fig.height=7,message=FALSE,warning=FALSE}
+ggpairs(metal_conc_data, columns = c(2:15, 17), aes(alpha = 0.55),   # Reduce alpha to range 0-1
+        upper = list(continuous = wrap("cor", size = 2.5))) +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1))
+```
+
+
+
+A low (0.2-0.35) positive linear correlation could be observed between ABO and:
+
+*   U
+
+A low (0.2-0.35) negative linear correlation could be observed between ABO and:
+
+*   Ni, Cu, Cd, Ba and Pb
+
+<br>
+
+P-values for the correlation between metal and ABO.
+```{r, comment=NA,echo=FALSE,fig.width=9, fig.height=7,message=FALSE,warning=FALSE}
+
+selected_data <- metal_conc_data[, c(2:15, 17)]
+p_values_table <- data.frame()
+
+# Loop over each combination of variables and calculate the p-values
+for(i in 1:(ncol(selected_data)-1)) {
+  for(j in (i+1):ncol(selected_data)) {
+    # Perform Pearson correlation test
+    test <- cor.test(selected_data[[i]], selected_data[[j]], method = "pearson")
+    
+    # Store the variable names, correlation, and p-value
+    p_values_table <- rbind(p_values_table, 
+                            data.frame(Var1 = colnames(selected_data)[i], 
+                                       Var2 = colnames(selected_data)[j], 
+                                       p_value = test$p.value))
+  }
+}
+
+# View the table of p-values
+#print(p_values_table)
+
+p_values_table %>% filter(Var2 == "ABO")
+
+```
+
+The metals Be, Ni, Cu, Cd, Ba, Tl, Pb and U have a P-value less than 0.15. 

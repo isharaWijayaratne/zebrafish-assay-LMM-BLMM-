@@ -1,0 +1,390 @@
+---
+title: ""
+author: "Ishara Wijayaratne"
+date: "2025-04-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## Data description and loading
+
+In this study a hierarchical modeling framework is used to disentangle the toxicity of complex metal mixtures by carrying out a screening study of 92 drinking well water samples containing multiple metal elements. The main objective of this study is to determine the neurodevelopmental impacts from exposure to these drinking water samples. This is achieved by carrying out a larvel zebrafish assay.
+
+
+
+```{r,echo=TRUE,warning=FALSE, message=FALSE, comment=NA}
+library(readxl)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+
+```{r,echo=TRUE,warning=FALSE, message=FALSE, comment=NA}
+file_path <- "data/average_swims.xlsx"
+metal_conc <- read_excel(file_path, sheet = 1)
+larvel_activity_data <- read_excel(file_path, sheet = 2)
+colnames(larvel_activity_data)[colnames(larvel_activity_data) == "Sample"] <- "Sample_No"
+larvel_data <- larvel_activity_data %>%
+  left_join(metal_conc %>% select(-CCU), by = "Sample_No")
+```
+
+
+```{r,echo=TRUE,warning=FALSE, message=FALSE, comment=NA}
+file_path <- "data/average_swims.xlsx"
+metal_conc <- read_excel(file_path, sheet = 1)
+larvel_activity_data <- read_excel(file_path, sheet = 2)
+colnames(larvel_activity_data)[colnames(larvel_activity_data) == "Sample"] <- "Sample_No"
+larvel_data <- larvel_activity_data %>%
+  left_join(metal_conc %>% select(-CCU), by = "Sample_No")
+```
+
+<br>
+
+The variables within the data set are as follows :
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA}
+colnames(larvel_data)
+head(larvel_data)
+```
+
+
+*   Sample_No - There are 92 well water samples
+*   Fish - To each well water sample 24 zebrafish larvae are introduced 	
+*   Time - The distance each fish swims is recorded in intervals of 5 for 25 minutes.
+*   Dark/Light - Each 5 minute intervals are in dark or light coditions alternatively.
+*   DLCondition - 1 for dark and 0 for light. 
+*   AVG_Distance - Records the distances traveled by the larvae in each time interval.
+*   AVG_Distance_Control - Records the distances traveled by the larvae relative to control samples in each time interval.
+*   Control_Distance - Records the distances traveled by the larvae in control samples during each time interval. 
+*   The concentration of 14 metals in each water sample is also recorded.
+
+## Linear Mixed Model Fitted in the study
+
+This LMM is fitted including **time** as a random slope. 
+```{r,echo=TRUE,warning=FALSE, message=FALSE, comment=NA}
+library(lmerTest) # to fit a LMM
+library(lme4) 
+```
+
+
+$Y^*_{ijt}$ stands for $i$th zebra fish in $j$th well water sample during $t$th time interval. $k$ stands for the metal type.
+
+$$
+Y^*_{ijt} = \beta_0 + \beta_1 L_{ijt} + \beta_2 \text{Time}_{ijt} + \sum_k \beta_k X_{jk} + u_{0ij} + u_{1ij} Time_{ijt} + u_{2ij} L_{ijt} + u_{3j} + e_{ijt}
+$$
+Model Assumptions:
+$$
+\begin{pmatrix}
+u_{0ij} \\
+u_{1ij} \\
+u_{2ij}
+\end{pmatrix}
+\sim \mathcal{N}_3(
+\begin{pmatrix}
+0 \\ 
+0 \\
+0
+\end{pmatrix}
+,
+\begin{pmatrix}
+\sigma_0^2 & \sigma_{01} & \sigma_{02} \\
+\sigma_{10} & \sigma_1^2 & \sigma_{12} \\
+\sigma_{20} & \sigma_{21} & \sigma_2^2
+\end{pmatrix})
+$$
+
+
+$$
+u_{2j} \sim \mathcal{N}(0, \sigma_3^2)
+$$
+
+$$
+e_{ijt} \sim \mathcal{N}(0, \sigma_e^2)
+$$
+
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA}
+# Fitting a Linear Mixed Model 
+model0 <- lmer(AVG_Distance_Control ~ Time + DLCondition + U +
+                (1 + Time + DLCondition | Fish) + 
+                (1 | Sample_No), data = larvel_data, REML = FALSE)
+
+# Get the summary which includes p-values
+summary(model0)
+```
+
+
+It is evident that the above model does not converge. This is because of the large differences in variance between the random slope time ($u_{1ij} Time_{ijt}$), and the other parameters.
+
+The plots below are used to verify if the assumptions of the Linear Mixed Model are satisfied, it is evident that the assumptions are also not satisfied.
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA, fig.height=5, fig.width=20}
+
+ranef_data <- ranef(model0)
+par(mfrow = c(1, 5))
+
+# Q-Q plot for random intercept (u0ij)
+qqnorm(ranef_data$Fish[,1], main = "QQ Plot for RI (u0ij)")
+qqline(ranef_data$Fish[,1])
+
+# Q-Q plot for random slope Time (u1ij)
+qqnorm(ranef_data$Fish[,2], main = "QQ Plot RS Time (u1ij)")
+qqline(ranef_data$Fish[,2])
+
+# Q-Q plot for random slope DLCondition (u2ij)
+qqnorm(ranef_data$Fish[,3], main = "QQPlot RS DLCondition (u2ij)")
+qqline(ranef_data$Fish[,3])
+
+# Q-Q plot for random intercept for the well water sample (u3j)
+qqnorm(ranef_data$Sample_No[,1], main = "QQPlot RI WaterSample (u3j)")
+qqline(ranef_data$Sample_No[,1])
+
+# Q-Q plot for random error term (eijt)
+qqnorm(residuals(model0), main = "QQ Plot for Residuals (eijt)")
+qqline(residuals(model0))
+
+```
+
+#### simplify code generation :
+
+```{r,echo=TRUE,eval=FALSE,warning=FALSE, message=FALSE, comment=NA}
+# Metals to consider
+metals <- c("Be", "Cr", "Mn", "Fe", "Ni", "Cu", "As", "Se", "Cd", "Sb", "Ba", "Tl", "Pb", "U")
+
+# Create a data frame to store results
+results <- data.frame(
+  Metal = character(),
+  Conditional_R2 = numeric(),
+  Marginal_R2 = numeric(),
+  AIC = numeric(),
+  BIC = numeric(),
+  P_Value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop through each metal and fit the model
+for (metal in metals) {
+  # Dynamically create the formula with the current metal
+  formula <- as.formula(
+    paste("AVG_Distance1 ~ Time + DLCondition +", metal, 
+          "+ (1 + DLCondition | Fish) + (1 | Sample_No)")
+  )
+
+    
+  # Fit the model
+  model <- lmer(formula, data = larvel_data, REML = FALSE)
+  
+  # Extract model metrics
+  conditional_r2 <- round(r.squaredGLMM(model)[2], 4)
+  marginal_r2 <- round(r.squaredGLMM(model)[1], 4)
+  aic <- AIC(model0)
+  bic <- BIC(model0)
+  
+  # Extract the p-value for the metal
+  p_value <- summary(model0)$coefficients[metal, "Pr(>|t|)"]
+  
+  # Append results to the results data frame
+  results <- rbind(
+    results, 
+    data.frame(
+      Metal = metal,
+      Conditional_R2 = conditional_r2,
+      Marginal_R2 = marginal_r2,
+      AIC = aic,
+      BIC = bic,
+      P_Value = p_value
+    )
+  )
+}
+
+# View the results
+print(results)
+```
+
+
+## Linear Mixed Model - excluding **time** as a random slope
+
+
+$$
+Y^*_{ijt} = \beta_0 + \beta_1 L_{ijt} + \beta_2 \text{Time}_{ijt} + \sum_k \beta_k X_{jk} + u_{0ij} + u_{1ij} L_{ijt} + u_{2j} + e_{ijt}
+$$
+
+Model Assumptions:
+$$
+\begin{pmatrix}
+u_{0ij} \\
+u_{1ij} 
+\end{pmatrix}
+\sim \mathcal{N}_2(
+\begin{pmatrix}
+0 \\ 
+0 
+\end{pmatrix}
+,
+\begin{pmatrix}
+\sigma_0^2 & \sigma_{01} \\
+\sigma_{10} & \sigma_1^2  
+\end{pmatrix})
+$$
+
+$$
+u_{2j} \sim \mathcal{N}(0, \sigma_3^2)
+$$
+
+$$
+e_{ijt} \sim \mathcal{N}(0, \sigma_e^2)
+$$
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA}
+# Fitting a Linear Mixed Model 
+model1 <- lmer(AVG_Distance_Control ~ Time + DLCondition + U +
+                (1 +  DLCondition | Fish) + 
+                (1 | Sample_No), data = larvel_data, REML = FALSE)
+
+# Get the summary which includes p-values
+summary(model1)
+```
+
+
+This model converged. However, from the QQ-plots below it is evident that the assumptions are not satisfied.
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE, comment=NA, fig.height=5, fig.width=15}
+
+ranef_data <- ranef(model1)
+par(mfrow = c(1, 4))
+
+# Q-Q plot for random intercept (u0ij)
+qqnorm(ranef_data$Fish[,1], main = "QQ Plot for RI (u0ij)")
+qqline(ranef_data$Fish[,1])
+
+# Q-Q plot for random slope DLCondition (u1ij)
+qqnorm(ranef_data$Fish[,2], main = "QQ Plot RS DLCondition (u1ij)")
+qqline(ranef_data$Fish[,2])
+
+# Q-Q plot for random intercept for the well water sample (u2j)
+qqnorm(ranef_data$Sample_No[,1], main = "QQ Plot RI WaterSample (u2j)")
+qqline(ranef_data$Sample_No[,1])
+
+# Q-Q plot for random error term (eijt)
+qqnorm(residuals(model1), main = "QQ Plot for Residuals (eijt)")
+qqline(residuals(model1))
+
+```
+
+
+
+
+
+## Exploring Bayesian Linear Mixed Modeling (BLMM) as an alternative modeling strategy
+
+```{r,echo=TRUE,warning=FALSE, message=FALSE, comment=NA}
+library(brms) # to fit a BLMM
+```
+
+
+### Model 1: 
+
+$$
+Y^*_{ijt} = \beta_0 + \beta_1 L_{ijt} + \beta_2 \text{Time}_{ijt} + \sum_k \beta_k X_{jk} + u_{0ij} + u_{1ij} L_{ijt} + u_{2j} + e_{ijt}
+$$
+Model 1 Assumptions:
+
+$$
+\begin{pmatrix}
+u_{0ij} \\
+u_{1ij} 
+\end{pmatrix}
+\sim \mathcal{N}_2(
+\begin{pmatrix}
+0 \\ 
+0 
+\end{pmatrix}
+,
+\begin{pmatrix}
+\sigma_0^2 & \sigma_{01} \\
+\sigma_{10} & \sigma_1^2  
+\end{pmatrix})
+$$
+
+$$
+u_{2j} \sim \mathcal{N}(0, \sigma_3^2)
+$$
+
+$$
+e_{ijt} \sim \mathcal{N}(0, \sigma_e^2)
+$$
+
+```{r,echo=TRUE,eval=FALSE,warning=FALSE, message=FALSE, comment=NA}
+
+
+fit_lin_t <- brm(AVG_Distance ~ Time + DLCondition + Cd + Cu +
+                (1 | Fish) + 
+                (1 | Sample_No), 
+                data = larvel_data,
+                 family = student(),
+                 prior = prior(student_t(3, 0, 1), class='b'),
+                 seed = 1, refresh = 0)
+
+fit_lin_t
+
+summary(fit_lin_t, waic=TRUE)
+
+LOO(fit_lin_t)
+WAIC(fit_lin_t)
+pp_check(fit_lin_t, type = "dens_overlay")
+pp_check(fit_lin_t, type = "error_hist")
+
+# Visualize marginal effects of predictors
+marginal_effects(fit_lin_t)
+
+```
+
+
+### Model 2: 
+
+$$
+Y^*_{ijt} = \beta_0 + \beta_1 L_{ijt} + \beta_2 \text{Time}_{ijt} + \sum_k \beta_k X_{jk} + u_{0ij} + u_{1j} + e_{ijt}
+$$
+
+Model 2 Assumptions:
+$$
+u_{0ij} \sim \mathcal{N}(0, \sigma_0^2)
+$$
+
+
+$$
+u_{1j} \sim \mathcal{N}(0, \sigma_1^2)
+$$
+
+$$
+e_{ijt} \sim \mathcal{N}(0, \sigma_e^2)
+$$
+
+```{r,echo=TRUE,eval=FALSE,warning=FALSE, message=FALSE, comment=NA}
+fit_lin_t <- brm(AVG_Distance ~ Time + DLCondition + Cd + Cu +
+                (1 | Sample_No), 
+                data = larvel_data,
+                 family = student(),
+                 prior = prior(student_t(3, 0, 1), class='b'),
+                 seed = 1, refresh = 0)
+
+fit_lin_t
+
+summary(fit_lin_t, waic=TRUE)
+
+LOO(fit_lin_t)
+WAIC(fit_lin_t)
+pp_check(fit_lin_t, type = "dens_overlay")
+pp_check(fit_lin_t, type = "error_hist")
+
+# Visualize marginal effects of predictors
+marginal_effects(fit_lin_t)
+```
+
+
